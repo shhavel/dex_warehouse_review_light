@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Warehouse Review</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/css/tailwind.css" />
+    <style>
+      .tooltip {
+        position: relative;
+        display: inline-block;
+      }
+
+      .tooltip-text {
+        visibility: hidden;
+        width: max-content;
+        background-color: #1a202c;
+        color: white;
+        text-align: center;
+        border-radius: 4px;
+        padding: 0.5rem;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -80px; /* Adjust this value based on your design */
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+    </style>
+<script type="application/javascript">
+function init() {
+  document.getElementById('csv_file_file').addEventListener('change', handleFileSelect, false);
+  document.getElementById('robot_report_id').addEventListener('change', renderReport, false);
+}
+
+const OUTCOME_STATUS = {
+  not_found: "Not Found",
+  not_scanned: "Not successfully scanned",
+  empty_empty: "The location was empty, as expected",
+  empty_occupied: "The location was occupied by an item, but should have been empty",
+  item_missing: "The location was empty, but it should have been occupied",
+  item_unidentified: "The location was occupied, but no barcode could be identified",
+  item_ok: "The location was occupied by the expected items",
+  item_extra: "The location was occupied by the expected item and some other items",
+  item_wrong: "The location was occupied by the wrong items"
+}
+const STATUS_CATEGORY = {
+  not_found: "no_data",
+  not_scanned: "no_data",
+  empty_empty: "ok",
+  empty_occupied: "discrepancy",
+  item_missing: "discrepancy",
+  item_unidentified: "no_data",
+  item_ok: "ok",
+  item_extra: "discrepancy",
+  item_wrong: "discrepancy"
+}
+const STATUS_COLOR = {
+  not_found: "bg-yellow-50",
+  not_scanned: "bg-yellow-50",
+  empty_empty: "bg-green-50",
+  empty_occupied: "bg-red-50",
+  item_missing: "bg-red-50",
+  item_unidentified: "bg-yellow-50",
+  item_ok: "bg-green-50",
+  item_extra: "bg-red-50",
+  item_wrong: "bg-red-50"
+}
+
+function handleFileSelect() {
+  const reader = new FileReader();
+  reader.onload = function() {
+    document.getElementById('csv_file_file').result = reader.result;
+    renderReport();
+  }
+  reader.readAsText(document.getElementById('csv_file_file').files[0]);
+}
+
+async function renderReport() {
+  const csvFile = document.getElementById('csv_file_file');
+  if (!csvFile.result) return;
+  const locations = [];
+  for(str of csvFile.result.split(/\r\n|\r|\n/)) {
+    const row = str.split(",");
+    if (row[0] && row[0] != "LOCATION")
+      locations.push({location: row[0], item: (row[1] ? row[1] : null)});
+  }
+
+  const robotReportUrl = document.getElementById('robot_report_id').value;
+  const response = await fetch(robotReportUrl);
+  const robotReport = await response.json();
+  reportLocations = {};
+  for(rloc of robotReport) {
+    reportLocations[rloc.name] = rloc;
+  }
+
+  const categoryCount = {ok: 0, no_data: 0, discrepancy: 0};
+
+  let tableRows = '';
+  for(loc of locations) {
+    const rloc = reportLocations[loc.location];
+    loc.scanned = rloc ? rloc.scanned : false;
+    loc.scannedEmoji = loc.scanned ? "👀" : "⚠️";
+
+    loc.occupied = rloc ? rloc.occupied : null;
+    loc.occupiedEmoji = loc.occupied ? "📦" : (loc.occupied === null ? "" : "📭");
+
+    loc.detectedBarcodes = rloc ? rloc.detected_barcodes : [];
+    loc.detectedItems = loc.detectedBarcodes.join(", ");
+
+    if (rloc === null) {
+      loc.status = 'not_found';
+    } else if (!loc.scanned) {
+      loc.status = 'not_scanned';
+    } else if (loc.item === null && !loc.occupied) {
+      loc.status = 'empty_empty';
+    } else if (loc.item === null) {
+      loc.status = 'empty_occupied';
+    } else if (!loc.occupied) {
+      loc.status = 'item_missing';
+    } else if (loc.detectedBarcodes.length === 0) {
+      loc.status = 'item_unidentified';
+    } else if (loc.detectedBarcodes.length === 1 && loc.item === loc.detectedBarcodes[0]) {
+      loc.status = 'item_ok';
+    } else if (loc.detectedBarcodes.includes(loc.item)) {
+      loc.status = 'item_extra';
+    } else {
+      loc.status = 'item_wrong';
+    }
+    categoryCount[STATUS_CATEGORY[loc.status]]++;
+
+    tableRows += '<tr class="' + STATUS_COLOR[loc.status] + '"><td class="px-6 py-3 whitespace-nowrap">' + loc.location +'</td><td class="px-6 py-3 whitespace-nowrap text-center">' + loc.scannedEmoji + '</td><td class="px-6 py-3 whitespace-nowrap text-center">' + loc.occupiedEmoji + '</td><td class="px-6 py-3 whitespace-nowrap">' + (loc.item ? loc.item : "") + '</td><td class="px-6 py-3 whitespace-nowrap">' + loc.detectedItems + '</td><td class="px-6 py-3 whitespace-nowrap">' + OUTCOME_STATUS[loc.status] + '</td></tr>';
+  }
+  document.getElementById('reportRows').innerHTML = tableRows;
+  document.getElementById('okCount').innerText = categoryCount['ok'];
+  document.getElementById('noDataCount').innerText = categoryCount['no_data'];
+  document.getElementById('discrepancyCount').innerText = categoryCount['discrepancy'];
+
+  document.getElementById("comparisonReport").setAttribute("class", "items-center container mx-auto mt-3 visible");
+}
+</script>
+  </head>
+  <body onload="init()">
+    <main class="container mx-auto my-6">
+      <div>
+  <h1 class="font-bold text-4xl">Comparison Report</h1>
+</div>
+
+<div class="container mx-auto mt-8 w-full">
+  <form>
+    <div class="flex items-center space-x-4">
+      <div class="w-1/2">
+  <div class="flex">
+    <label for="csv_file_id" class="block text-m font-medium text-gray-700 mr-4">CSV file</label>
+  </div>
+
+  <div class="flex">
+    <input class="block shadow rounded-md border border-gray-200 outline-none px-3 py-1 mt-1" accept=".csv" type="file" name="csv_file[file]" id="csv_file_file" />
+  </div>
+</form>
+      </div>
+
+      <div class="w-1/2">
+        <label for="robot_report_id" class="block text-m font-medium text-gray-700">Robot Report</label>
+        <select class="mt-1 block w-240 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-300" name="robot_report_id" id="robot_report_id">
+<!-- NEW_REPORT -->
+<option value="/robot_reports/2024-02-05.json">2024-02-05.json</option>
+<option value="/robot_reports/2024-02-05.json">2024-02-05.json</option>
+<option value="/robot_reports/2024-02-05.json">2024-02-05.json</option>
+<option value="/robot_reports/2024-02-04.json">2024-02-04.json</option>
+<option value="/robot_reports/2024-02-03.json">2024-02-03.json</option>
+        </select>
+      </div>
+    </div>
+</form></div>
+
+<div class="container mx-auto mt-3 hidden" id="comparisonReport">
+  <table class="min-w-full divide-y divide-gray-200 my-6">
+    <thead>
+      <tr>
+        <th class="px-6 py-4 bg-gray-50 text-center text-xs font-large text-gray-500 uppercase tracking-wider">✅ OK</th>
+        <th class="px-6 py-4 bg-gray-50 text-center text-xs font-large text-gray-500 uppercase tracking-wider">🚧 Warning</th>
+        <th class="px-6 py-4 bg-gray-50 text-center text-xs font-large text-gray-500 uppercase tracking-wider">🚨 Discrepancy</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+      <tr>
+        <td class="px-12 py-3 whitespace-nowrap text-center bg-green-50">
+          <span id="okCount">0</span>
+          <div class="relative inline-block">
+            <span class="tooltip">
+              <span class="tooltip-text">The number of successfully scanned <br>locations where the CSV file <br>data matches the robot report.</span>
+              <span class="circle text-white bg-blue-400 flex items-center justify-center h-4 w-4 rounded-full cursor-pointer mx-1">?</span>
+            </span>
+          </div>
+        </td>
+        <td class="px-12 py-3 whitespace-nowrap text-center bg-yellow-50">
+          <span id="noDataCount">0</span>
+          <div class="relative inline-block">
+            <span class="tooltip">
+              <span class="tooltip-text">The number of locations that <br>were not scanned successfully, <br>as well as those for which the <br>barcode could not be identified.</span>
+              <span class="circle text-white bg-blue-400 flex items-center justify-center h-4 w-4 rounded-full cursor-pointer mx-1">?</span>
+            </span>
+          </div>
+        </td>
+        <td class="px-12 py-3 whitespace-nowrap text-center bg-red-50">
+          <span id="discrepancyCount">0</span>
+          <span class="tooltip">
+            <span class="tooltip-text">The number of locations where <br>a discrepancy was observed between <br>the CSV file and the robot report <br>(e.g. missing item, wrong item, occupied <br>location should have been empty).</span>
+            <span class="circle text-white bg-blue-400 flex items-center justify-center h-4 w-4 rounded-full cursor-pointer mx-1">?</span>
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead>
+      <tr>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location Name</th>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Successfully Scanned</th>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Occupied</th>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Barcodes</th>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual Barcodes</th>
+        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outcome Status</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200" id="reportRows">
+    </tbody>
+  </table>
+</div>
+    </main>
+  </body>
+</html>

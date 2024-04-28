@@ -1,0 +1,26 @@
+[
+  {
+    "name": "ZA003A",
+    "scanned": true,
+    "occupied": false,
+    "detected_barcodes": [
+
+    ]
+  },
+  {
+    "name": "ZE018C",
+    "scanned": true,
+    "occupied": true,
+    "detected_barcodes": [
+      "DX9850005073"
+    ]
+  },
+  {
+    "name": "ZE019C",
+    "scanned": true,
+    "occupied": true,
+    "detected_barcodes": [
+      "DX9850005074"
+    ]
+  }
+]

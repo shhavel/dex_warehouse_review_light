@@ -1,0 +1,42 @@
+[
+  {
+    "name": "ZA001A",
+    "scanned": true,
+    "occupied": true,
+    "detected_barcodes": [
+      "DX9850004338"
+    ]
+  },
+  {
+    "name": "ZA002A",
+    "scanned": true,
+    "occupied": false,
+    "detected_barcodes": [
+
+    ]
+  },
+  {
+    "name": "ZB001A",
+    "scanned": false,
+    "occupied": false,
+    "detected_barcodes": [
+
+    ]
+  },
+  {
+    "name": "ZC002A",
+    "scanned": true,
+    "occupied": false,
+    "detected_barcodes": [
+
+    ]
+  },
+  {
+    "name": "ZC001B",
+    "scanned": true,
+    "occupied": true,
+    "detected_barcodes": [
+      "DX985900052481"
+    ]
+  }
+]
