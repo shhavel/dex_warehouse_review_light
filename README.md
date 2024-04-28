@@ -21,13 +21,13 @@ caddy file-server --listen :9000
 To upload a robot report, simly copy JSON file in `./robot_reports` folder and update the select with the new option:
 
 ~~~sh
-cp ~/www/Dexory/example-robot.json ~/www/warehouse_review_light/robot_reports/2024-02-05.json && \
+cp ~/Dex/example-robot.json ~/Code/warehouse_review_light/robot_reports/2024-02-05.json && \
 sed -i '' '/<!-- NEW_REPORT -->/a\
 <option value="/robot_reports/2024-02-05.json">2024-02-05.json</option>\
-' ~/www/warehouse_review_light/index.html
+' ~/Code/warehouse_review_light/index.html
 ~~~
 
-This command assums that we have robot report file `~/www/Dexory/example-robot.json` and this app is located inside `~/www/warehouse_review_light` folder.
+This command assums that we have robot report file `~/Dex/example-robot.json` and this app is located inside `~/Code/warehouse_review_light` folder.
 
 ## Usage
 
